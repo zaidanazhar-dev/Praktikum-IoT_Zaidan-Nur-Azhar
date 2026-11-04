@@ -1,424 +1,265 @@
--   [Percobaan 1A --- Pembacaan Sensor
--     DHT22](#percobaan-1a--pembacaan-sensor-dht22)
-    -   [Tujuan](#tujuan)
-    -   [Komponen dan library](#komponen-dan-library)
-    -   [Konfigurasi pin](#konfigurasi-pin)
-    -   [Penjelasan program](#penjelasan-program)
-    -   [Alur kerja](#alur-kerja)
-    -   [Hasil yang diharapkan](#hasil-yang-diharapkan)
--   [Percobaan 2A --- Kendali Relay Berdasarkan
-    Suhu](#percobaan-2a--kendali-relay-berdasarkan-suhu)
-    -   [Tujuan](#tujuan-1)
-    -   [Komponen dan library](#komponen-dan-library-1)
-    -   [Konfigurasi pin dan ambang
-        batas](#konfigurasi-pin-dan-ambang-batas)
-    -   [Penjelasan program](#penjelasan-program-1)
-    -   [Alur kerja](#alur-kerja-1)
-    -   [Hasil yang diharapkan](#hasil-yang-diharapkan-1)
--   [Catatan implementasi dan
-    troubleshooting](#catatan-implementasi-dan-troubleshooting)
-
-------------------------------------------------------------------------
-
-# Percobaan 1A --- Pembacaan Sensor DHT22
+# Percobaan 1A - Membaca Sensor DHT22
 
 ## Tujuan
 
-Membuat program untuk membaca nilai suhu dan kelembapan udara
-menggunakan sensor DHT22, kemudian menampilkan hasil pembacaannya
-melalui Serial Monitor.
+Percobaan ini bertujuan untuk mengetahui cara membaca suhu dan
+kelembapan menggunakan sensor DHT22. Hasil pembacaan nantinya
+ditampilkan melalui Serial Monitor pada Arduino IDE.
 
-## Komponen dan library
+## Alat dan bahan
 
-**Komponen:** - Board mikrokontroler yang digunakan pada praktikum
-(misalnya ESP32). - Sensor DHT22. - Kabel jumper dan breadboard. - Kabel
-USB untuk menghubungkan board ke komputer.
+-   ESP32 atau board mikrokontroler yang digunakan saat praktikum
+-   Sensor DHT22
+-   Kabel jumper
+-   Breadboard jika diperlukan
+-   Kabel USB
 
-**Library:** - `DHT.h` --- library untuk mengakses sensor DHT22. Pada
-Arduino IDE, library ini umumnya tersedia melalui **DHT sensor library
-by Adafruit**. - `Adafruit Unified Sensor` --- dependency yang
-diperlukan oleh versi library DHT Adafruit.
+## Library yang digunakan
 
-Pastikan library sudah terpasang sebelum melakukan kompilasi program.
+-   DHT sensor library by Adafruit
+-   Adafruit Unified Sensor
 
-## Konfigurasi pin
+Library DHT digunakan supaya program bisa berkomunikasi dengan sensor.
+Jika library belum dipasang, biasanya akan muncul error DHT.h: No such
+file or directory saat program dikompilasi.
 
-  Perangkat                             Pin pada program Keterangan
-  ------------ ----------------------------------------- -------------------
-  DHT22 DATA                                      GPIO 4 Jalur data sensor
-  DHT22 VCC      3.3 V atau 5 V sesuai spesifikasi modul Catu daya
-  DHT22 GND                                          GND Ground
+## Koneksi pin
 
-Jika menggunakan sensor DHT22 versi bare sensor (bukan modul),
-perhatikan kebutuhan resistor pull-up pada jalur DATA sesuai datasheet
-atau rangkaian praktikum.
+-   DATA DHT22 ke GPIO 4
+-   VCC ke sumber tegangan sesuai modul sensor
+-   GND ke GND board
 
-## Penjelasan program
+Jika menggunakan sensor DHT22 yang belum berbentuk modul, perhatikan
+kebutuhan resistor pull-up pada pin data. Untuk modul sensor,
+rangkaiannya bisa berbeda tergantung jenis modul yang digunakan.
 
-### 1. Memanggil library
+## Penjelasan kode
 
-``` cpp
-#include <DHT.h>
-```
+### Memanggil library
 
-Memasukkan library DHT agar program dapat menggunakan fungsi untuk
-menginisialisasi sensor serta membaca suhu dan kelembapan.
+#include <DHT.h\>
 
-### 2. Menentukan pin dan tipe sensor
+Bagian ini digunakan untuk memasukkan library DHT ke dalam program.
+Library tersebut menyediakan fungsi untuk membaca data dari sensor.
 
-``` cpp
-#define DHTPIN 4
+### Menentukan pin dan tipe sensor
+
+#define DHTPIN 4 
 #define DHTTYPE DHT22
-```
 
--   `DHTPIN` menentukan GPIO yang terhubung ke pin DATA sensor, yaitu
-    GPIO 4.
--   `DHTTYPE` menentukan jenis sensor yang digunakan, yaitu DHT22.
+DHTPIN menunjukkan pin data sensor yang terhubung ke GPIO 4. DHTTYPE
+digunakan untuk menentukan jenis sensor yang dipakai, yaitu DHT22.
 
-### 3. Membuat objek sensor
+### Membuat objek sensor
 
-``` cpp
 DHT dht(DHTPIN, DHTTYPE);
-```
 
-Membuat objek bernama `dht` dengan konfigurasi pin dan tipe sensor yang
-telah ditentukan. Objek ini digunakan untuk memanggil fungsi-fungsi dari
-library DHT.
+Baris ini membuat objek sensor dengan nama dht. Objek tersebut nantinya
+dipakai untuk menjalankan fungsi pembacaan suhu dan kelembapan.
 
-### 4. Fungsi `setup()`
+### Bagian setup
 
-``` cpp
-void setup() {
-  Serial.begin(115200);
-  dht.begin();
-  Serial.println("Memulai akuisisi data sensor DHT22...");
-}
-```
+Pada fungsi setup, program menjalankan beberapa perintah:
 
-Fungsi `setup()` dijalankan satu kali ketika board mulai bekerja.
-
--   `Serial.begin(115200)` mengaktifkan komunikasi serial dengan baud
+-   Serial.begin(115200) untuk memulai komunikasi serial dengan baud
     rate 115200.
--   `dht.begin()` menginisialisasi sensor DHT22.
--   `Serial.println()` menampilkan pesan awal pada Serial Monitor.
+-   dht.begin() untuk memulai sensor DHT22.
+-   Serial.println() untuk menampilkan pesan bahwa proses pembacaan
+    sensor dimulai.
 
-Atur baud rate Serial Monitor menjadi **115200** agar teks terbaca
-dengan benar.
+Fungsi setup hanya dijalankan satu kali saat board mulai menyala atau
+di-reset.
 
-### 5. Membaca kelembapan dan suhu
+### Membaca kelembapan dan suhu
 
-``` cpp
-float kelembaban = dht.readHumidity();
-float suhu = dht.readTemperature();
-```
+float kelembaban = dht.
+readHumidity(); 
+float suhu =dht.
+readTemperature();
 
--   `readHumidity()` membaca kelembapan relatif dalam persen (%).
--   `readTemperature()` membaca suhu dalam derajat Celsius (°C).
--   Tipe data `float` digunakan agar nilai dapat menyimpan angka
-    desimal.
+readHumidity() digunakan untuk mengambil nilai kelembapan udara dalam
+persen. Sementara readTemperature() digunakan untuk mengambil suhu dalam
+derajat Celsius. Hasilnya disimpan ke variabel bertipe float karena
+nilainya bisa memiliki angka di belakang koma.
 
-### 6. Memeriksa kegagalan pembacaan
+### Memeriksa hasil pembacaan
 
-``` cpp
-if (isnan(kelembaban) || isnan(suhu)) {
-  Serial.println("Gagal membaca data dari sensor DHT22!");
-}
-```
+Program menggunakan kondisi if dengan fungsi isnan(). Fungsi ini
+memeriksa apakah nilai yang diterima bukan angka atau tidak valid.
 
-`isnan()` memeriksa apakah nilai yang diterima bukan angka (*Not a
-Number*). Kondisi ini dapat terjadi ketika pembacaan sensor gagal.
-Operator `||` berarti pesan kegagalan ditampilkan jika pembacaan
-kelembapan **atau** suhu tidak valid.
+Jika nilai suhu atau kelembapan tidak berhasil dibaca, program
+menampilkan pesan gagal membaca data. Jika keduanya berhasil dibaca,
+program masuk ke bagian else dan menampilkan hasilnya.
 
-### 7. Menampilkan hasil pembacaan
+### Menampilkan data
 
-``` cpp
-else {
-  Serial.print("Suhu: ");
-  Serial.print(suhu);
-  Serial.print(" °C, Kelembaban: ");
-  Serial.print(kelembaban);
-  Serial.println(" %");
-}
-```
+Nilai suhu dan kelembapan ditampilkan menggunakan Serial.print() dan
+Serial.println(). Serial.print() menampilkan teks atau nilai tanpa
+langsung pindah ke baris berikutnya, sedangkan Serial.println()
+menampilkan data lalu pindah baris.
 
-Jika kedua nilai berhasil dibaca, program menampilkan suhu dan
-kelembapan pada Serial Monitor.
+### Jeda pembacaan
 
-### 8. Jeda pembacaan
-
-``` cpp
-delay(2000);
-```
-
-Memberikan jeda 2000 milidetik (2 detik) sebelum siklus pembacaan
-berikutnya. Jeda ini sesuai dengan interval pembacaan yang umum
-digunakan untuk DHT22.
+delay(2000) memberikan jeda selama 2000 milidetik atau 2 detik sebelum
+program mengulangi pembacaan sensor. Jeda ini digunakan agar pembacaan
+tidak dilakukan terlalu cepat.
 
 ## Alur kerja
 
-1.  Board dinyalakan dan menjalankan `setup()`.
-2.  Komunikasi serial dimulai pada baud rate 115200.
-3.  Sensor DHT22 diinisialisasi.
-4.  Program membaca kelembapan dan suhu.
-5.  Program memeriksa apakah hasil pembacaan valid.
-6.  Jika pembacaan gagal, pesan kesalahan ditampilkan.
-7.  Jika pembacaan berhasil, suhu dan kelembapan ditampilkan.
-8.  Program menunggu 2 detik, kemudian mengulangi proses.
+1.  Board dinyalakan.
+2.  Serial Monitor dan sensor DHT22 diinisialisasi.
+3.  Program membaca kelembapan dan suhu.
+4.  Program memeriksa apakah data berhasil dibaca.
+5.  Jika gagal, pesan error ditampilkan.
+6.  Jika berhasil, nilai suhu dan kelembapan ditampilkan.
+7.  Program menunggu 2 detik lalu mengulangi proses.
 
-## Hasil yang diharapkan
+## Contoh hasil pada Serial Monitor
 
-Serial Monitor menampilkan pesan awal, kemudian data suhu dan kelembapan
-secara berkala. Contoh format keluaran:
+Memulai akuisisi data sensor DHT22... Suhu: 28.50 °C, Kelembaban: 65.00
+% Suhu: 28.60 °C, Kelembaban: 64.80 %
 
-``` text
-Memulai akuisisi data sensor DHT22...
-Suhu: 28.50 °C, Kelembaban: 65.00 %
-Suhu: 28.60 °C, Kelembaban: 64.80 %
-```
-
-Angka di atas hanya contoh format keluaran, bukan hasil pengukuran
-praktikum.
+Angka di atas hanya contoh tampilan. Hasil sebenarnya akan mengikuti
+kondisi suhu dan kelembapan di sekitar sensor.
 
 ------------------------------------------------------------------------
 
-# Percobaan 2A --- Kendali Relay Berdasarkan Suhu
+# Percobaan 2A - Mengendalikan Relay Berdasarkan Suhu
 
 ## Tujuan
 
-Membuat sistem kendali sederhana yang membaca suhu dari sensor DHT22 dan
-mengaktifkan atau menonaktifkan relay berdasarkan ambang batas suhu
-(*temperature threshold*) sebesar 30 °C.
+Percobaan ini menggunakan sensor DHT22 untuk membaca suhu, kemudian
+mengatur relay berdasarkan nilai suhu tersebut. Pada kode ini, relay
+akan aktif jika suhu lebih dari 30 derajat Celsius. Jika suhu sama
+dengan atau kurang dari 30 derajat, relay akan mati.
 
-Pada program ini, relay digunakan sebagai keluaran digital untuk
-mengendalikan aktuator atau beban yang terhubung melalui modul relay.
+## Alat dan bahan
 
-## Komponen dan library
+-   ESP32 atau board mikrokontroler yang digunakan saat praktikum
+-   Sensor DHT22
+-   Modul relay
+-   Aktuator atau beban yang akan dikendalikan
+-   Kabel jumper
+-   Breadboard jika diperlukan
+-   Kabel USB
 
-**Komponen:** - Board mikrokontroler yang digunakan pada praktikum
-(misalnya ESP32). - Sensor DHT22. - Modul relay yang kompatibel dengan
-tegangan logika board. - Aktuator atau beban yang sesuai dengan
-spesifikasi modul relay. - Kabel jumper dan breadboard. - Kabel USB
-untuk menghubungkan board ke komputer.
+## Library yang digunakan
 
-**Library:** - `DHT.h` --- untuk membaca data dari sensor DHT22. -
-`Adafruit Unified Sensor` --- dependency untuk library DHT Adafruit.
+-   DHT sensor library by Adafruit
+-   Adafruit Unified Sensor
 
-Program ini tidak memerlukan library relay khusus karena relay
-dikendalikan menggunakan fungsi GPIO bawaan Arduino, yaitu `pinMode()`
-dan `digitalWrite()`.
+Library DHT digunakan untuk mengambil data suhu dari sensor. Untuk
+mengendalikan relay tidak diperlukan library tambahan karena pin relay
+dikontrol menggunakan fungsi GPIO bawaan Arduino.
 
-## Konfigurasi pin dan ambang batas
+## Koneksi pin
 
-  Perangkat/parameter       Nilai Keterangan
-  --------------------- --------- --------------------------------
-  DHT22 DATA               GPIO 4 Jalur data sensor
-  Relay IN                GPIO 26 Sinyal kendali relay
-  Ambang batas suhu       30.0 °C Batas untuk mengaktifkan relay
-  Baud rate serial         115200 Kecepatan komunikasi serial
+-   DATA DHT22 ke GPIO 4
+-   IN relay ke GPIO 26
+-   VCC dan GND sensor serta relay disambungkan sesuai kebutuhan modul
+    dan board
 
-**Catatan:** Program mengasumsikan relay aktif ketika pin GPIO bernilai
-`HIGH` (*active-high*). Beberapa modul relay justru menggunakan logika
-*active-low*, sehingga perilakunya perlu disesuaikan dengan spesifikasi
-modul.
+Pastikan modul relay cocok dengan tegangan logika dari board yang
+digunakan. Jangan langsung menghubungkan beban bertegangan tinggi ke pin
+GPIO.
 
-## Penjelasan program
+## Penjelasan kode
 
-### 1. Memanggil library
+### Memanggil library dan menentukan pin
 
-``` cpp
-#include <DHT.h>
-```
+#include <DHT.h\>
 
-Memasukkan library DHT agar program dapat membaca suhu dari sensor
-DHT22.
+#define DHTPIN 4 #define DHTTYPE DHT22 #define RELAYPIN 26
 
-### 2. Menentukan pin dan tipe sensor
+Library DHT dipanggil agar sensor bisa digunakan. DHTPIN menentukan pin
+data sensor, DHTTYPE menentukan jenis sensor, sedangkan RELAYPIN
+menentukan pin yang digunakan untuk mengontrol relay yaitu GPIO 26.
 
-``` cpp
-#define DHTPIN 4
-#define DHTTYPE DHT22
-#define RELAYPIN 26
-```
+### Membuat objek sensor dan batas suhu
 
--   `DHTPIN` menentukan GPIO 4 sebagai jalur data sensor.
--   `DHTTYPE` menentukan jenis sensor, yaitu DHT22.
--   `RELAYPIN` menentukan GPIO 26 sebagai pin keluaran untuk
-    mengendalikan relay.
-
-### 3. Membuat objek sensor dan ambang batas
-
-``` cpp
 DHT dht(DHTPIN, DHTTYPE);
 
-const float suhuThreshold = 30.0;
-```
+const float suhu
+Threshold = 30.0;
 
-Objek `dht` digunakan untuk mengakses sensor. Variabel `suhuThreshold`
-merupakan konstanta bertipe `float` yang menetapkan ambang batas suhu
-sebesar 30.0 °C.
+Objek dht digunakan untuk membaca data dari sensor. Variabel
+suhuThreshold berisi batas suhu yang digunakan sebagai patokan untuk
+mengaktifkan relay. Nilainya dibuat 30.0 derajat Celsius dan menggunakan
+const supaya nilainya tidak berubah selama program berjalan.
 
-### 4. Fungsi `setup()`
+### Bagian setup
 
-``` cpp
-void setup() {
-  Serial.begin(115200);
-  dht.begin();
-  pinMode(RELAYPIN, OUTPUT);
-  digitalWrite(RELAYPIN, LOW);
-}
-```
+Pada bagian setup terdapat beberapa perintah:
 
-Fungsi `setup()` dijalankan satu kali ketika board mulai bekerja.
+-   Serial.begin(115200) untuk memulai komunikasi serial.
+-   dht.begin() untuk menginisialisasi sensor.
+-   pinMode(RELAYPIN, OUTPUT) untuk mengatur GPIO 26 sebagai output.
+-   digitalWrite(RELAYPIN, LOW) untuk mengatur kondisi awal pin relay
+    menjadi LOW.
 
--   `Serial.begin(115200)` mengaktifkan komunikasi serial.
--   `dht.begin()` menginisialisasi sensor DHT22.
--   `pinMode(RELAYPIN, OUTPUT)` mengatur GPIO 26 sebagai pin keluaran.
--   `digitalWrite(RELAYPIN, LOW)` mengatur kondisi awal pin relay
-    menjadi LOW. Dengan asumsi relay active-high, kondisi ini berarti
-    relay OFF.
+Pada kode ini, LOW dianggap sebagai kondisi relay mati dan HIGH dianggap
+sebagai kondisi relay aktif. Hal tersebut berlaku jika modul relay yang
+digunakan memiliki logika active-high.
 
-### 5. Membaca suhu
+### Membaca suhu
 
-``` cpp
 float suhu = dht.readTemperature();
-```
 
-Membaca suhu dari sensor DHT22 dalam satuan derajat Celsius dan
-menyimpannya pada variabel `suhu`.
+Perintah ini mengambil data suhu dari DHT22 dalam satuan Celsius.
+Nilainya disimpan ke variabel suhu.
 
-### 6. Memeriksa kegagalan pembacaan
+### Memeriksa data sensor
 
-``` cpp
-if (isnan(suhu)) {
-  Serial.println("Gagal membaca data sensor!");
-}
-```
+if (isnan(suhu))
 
-Memeriksa apakah nilai suhu tidak valid. Jika pembacaan gagal, program
-menampilkan pesan kesalahan dan tidak menjalankan percabangan kendali
-suhu pada siklus tersebut.
+Bagian ini memeriksa apakah pembacaan suhu gagal. Jika nilainya tidak
+valid, program menampilkan pesan Gagal membaca data sensor. Jika
+pembacaan berhasil, program melanjutkan ke bagian untuk menampilkan suhu
+dan mengatur relay.
 
-### 7. Menampilkan suhu
+### Menampilkan suhu
 
-``` cpp
-Serial.print("Suhu: ");
-Serial.print(suhu);
-Serial.print(" °C -> ");
-```
+Serial.print() digunakan untuk menampilkan nilai suhu pada Serial
+Monitor. Setelah itu program menampilkan tanda panah sebagai pemisah
+sebelum menampilkan status aktuator.
 
-Menampilkan nilai suhu yang berhasil dibaca sebelum menampilkan status
-aktuator.
+### Mengatur relay menggunakan if dan else
 
-### 8. Mengendalikan relay menggunakan conditional
+Pada bagian ini suhu dibandingkan dengan suhuThreshold.
 
-``` cpp
-if (suhu > suhuThreshold) {
-  digitalWrite(RELAYPIN, HIGH);
-  Serial.println("Aktuator: ON");
-} else {
-  digitalWrite(RELAYPIN, LOW);
-  Serial.println("Aktuator: OFF");
-}
-```
+-   Jika suhu lebih dari 30.0 derajat Celsius, pin relay diatur menjadi
+    HIGH dan Serial Monitor menampilkan Aktuator: ON.
+-   Jika suhu sama dengan atau kurang dari 30.0 derajat Celsius, pin
+    relay diatur menjadi LOW dan Serial Monitor menampilkan Aktuator:
+    OFF.
 
-Program menggunakan percabangan `if-else` untuk membandingkan suhu
-dengan ambang batas 30.0 °C.
-
--   Jika `suhu > 30.0`, pin relay diatur menjadi HIGH dan status
-    aktuator ditampilkan sebagai ON.
--   Jika `suhu <= 30.0`, pin relay diatur menjadi LOW dan status
-    aktuator ditampilkan sebagai OFF.
-
-Dengan demikian, suhu yang tepat **30.0 °C** belum mengaktifkan relay
-karena operator yang digunakan adalah `>` dan bukan `>=`.
+Karena kondisi yang digunakan adalah suhu \> suhuThreshold, relay belum
+aktif ketika suhu tepat 30.0 derajat Celsius.
 
 ## Alur kerja
 
-1.  Board dinyalakan dan menjalankan `setup()`.
-2.  Komunikasi serial dan sensor DHT22 diinisialisasi.
-3.  GPIO 26 diatur sebagai OUTPUT.
-4.  Relay diatur ke kondisi awal LOW.
-5.  Program membaca suhu dari DHT22.
-6.  Program memeriksa validitas data suhu.
-7.  Jika pembacaan gagal, pesan kesalahan ditampilkan.
-8.  Jika pembacaan berhasil, suhu dibandingkan dengan ambang batas 30.0
-    °C.
-9.  Jika suhu lebih dari 30.0 °C, relay diaktifkan.
-10. Jika suhu 30.0 °C atau lebih rendah, relay dinonaktifkan.
-11. Proses pembacaan dan pengendalian diulangi.
+1.  Board dinyalakan dan program menjalankan setup.
+2.  Sensor DHT22 diinisialisasi.
+3.  GPIO 26 diatur sebagai output untuk relay.
+4.  Kondisi awal relay diatur LOW.
+5.  Program membaca suhu dari sensor.
+6.  Program memeriksa apakah data suhu valid.
+7.  Jika pembacaan gagal, pesan error ditampilkan.
+8.  Jika berhasil, suhu ditampilkan pada Serial Monitor.
+9.  Suhu dibandingkan dengan batas 30.0 derajat Celsius.
+10. Relay menyala jika suhu lebih dari batas tersebut dan mati jika
+    tidak.
+11. Program mengulangi proses pembacaan dan pengendalian.
 
-## Hasil yang diharapkan
+## Contoh hasil pada Serial Monitor
 
-Serial Monitor menampilkan suhu dan status aktuator berdasarkan hasil
-pembacaan sensor.
+Jika suhu lebih dari 30 derajat:
 
-Contoh ketika suhu di atas ambang batas:
+Suhu: 31.20 °C -\> Aktuator: ON
 
-``` text
-Suhu: 31.20 °C -> Aktuator: ON
-```
+Jika suhu 30 derajat atau kurang:
 
-Contoh ketika suhu sama dengan atau di bawah ambang batas:
+Suhu: 29.50 °C -\> Aktuator: OFF
 
-``` text
-Suhu: 29.50 °C -> Aktuator: OFF
-```
-
-Angka di atas hanya contoh format keluaran, bukan hasil pengukuran
-praktikum.
-
-------------------------------------------------------------------------
-
-# Catatan implementasi dan troubleshooting
-
-## 1. Library tidak ditemukan
-
-Jika muncul error seperti:
-
-``` text
-fatal error: DHT.h: No such file or directory
-```
-
-Pasang **DHT sensor library by Adafruit** melalui Library Manager
-Arduino IDE. Pastikan dependency **Adafruit Unified Sensor** juga sudah
-terpasang.
-
-## 2. Sensor gagal dibaca
-
-Jika Serial Monitor menampilkan pesan kegagalan pembacaan:
-
--   Periksa koneksi VCC, GND, dan DATA.
--   Pastikan pin DATA terhubung ke GPIO yang sesuai dengan definisi
-    program.
--   Pastikan tipe sensor telah ditentukan sebagai `DHT22`.
--   Periksa kebutuhan resistor pull-up jika menggunakan sensor DHT22
-    tanpa modul.
--   Pastikan interval pembacaan tidak terlalu cepat.
-
-## 3. Relay tidak bekerja sesuai kondisi suhu
-
--   Pastikan kabel sinyal relay terhubung ke GPIO 26.
--   Pastikan modul relay kompatibel dengan level tegangan GPIO board.
--   Periksa apakah modul menggunakan logika active-high atau active-low.
--   Pastikan catu daya relay dan aktuator sesuai spesifikasi perangkat.
-
-**Keselamatan:** Jangan menghubungkan beban tegangan AC atau tegangan
-tinggi secara langsung ke GPIO mikrokontroler. Gunakan modul relay yang
-sesuai, lakukan isolasi dan pengawatan dengan benar, serta minta
-pengawasan praktikan/dosen yang kompeten jika menggunakan tegangan
-berbahaya.
-
-## 4. Catatan pada kode Percobaan 2A
-
-Potongan kode Percobaan 2A yang disertakan perlu diperiksa sebelum
-dikompilasi. Pada bagian akhir yang dikirim, penutup blok fungsi
-`loop()` belum terlihat. Pastikan terdapat kurung kurawal penutup `}`
-untuk seluruh blok yang dibuka.
-
-Selain itu, kode Percobaan 2A yang diberikan belum memiliki `delay()`.
-Akibatnya, pembacaan sensor dan pengendalian relay akan diulang secepat
-siklus program berjalan. Jika ingin menggunakan interval pembacaan 2
-detik seperti Percobaan 1A, tambahkan `delay(2000);` di akhir fungsi
-`loop()` setelah seluruh percabangan selesai. Penambahan ini merupakan
-penyesuaian program, bukan bagian dari potongan kode awal.
+Nilai di atas hanya contoh. Status relay yang sebenarnya juga bergantung
+pada jenis modul relay yang digunakan.
