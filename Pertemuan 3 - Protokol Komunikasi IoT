@@ -1,0 +1,113 @@
+//Kode 3A
+
+#include <ESP8266WiFi.h>                 // Library untuk menghubungkan ESP8266 ke WiFi
+#include <ESP8266HTTPClient.h>           // Library untuk melakukan komunikasi HTTP
+#include <WiFiClientSecureBearSSL.h>     // Library untuk koneksi HTTPS
+#include <ArduinoJson.h>  
+const char* ssid = "OPPO18";
+const char* password = "i2nb2ayq";
+const char* serverUrl = "https://httpbin.org/post";
+void setup() {
+  Serial.begin(115200);
+  WiFi.begin(ssid, password);
+  Serial.print("Menghubungkan ke WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);           
+    Serial.print(".");   
+  }
+  Serial.println();
+  Serial.println("WiFi berhasil terhubung!");
+}
+void loop() {
+  if (WiFi.status() == WL_CONNECTED) {
+    std::unique_ptr<BearSSL::WiFiClientSecure> client(
+      new BearSSL::WiFiClientSecure()
+    );
+    client->setInsecure();
+    HTTPClient http;
+    if (http.begin(*client, serverUrl)) {
+      http.addHeader("Content-Type", "application/json");
+      JsonDocument doc;
+      doc["suhu"] = 28.5;
+      doc["kelembaban"] = 65.0;
+      String requestBody;
+      serializeJson(doc, requestBody);
+      Serial.print("Mengirim data: ");
+      Serial.println(requestBody);
+      int httpResponseCode = http.POST(requestBody);
+      if (httpResponseCode > 0) {
+        Serial.print("Kode Response HTTP: ");
+        Serial.println(httpResponseCode);
+        Serial.println("Isi Response:");
+        Serial.println(http.getString());
+      } else {
+        Serial.print("Pengiriman gagal, kode error: ");
+        Serial.println(httpResponseCode);
+      }
+      http.end();
+    } else {
+      Serial.println("Gagal memulai koneksi HTTP");
+    }
+  }
+  delay(10000);
+}
+
+//Kode 3B
+
+#include <ESP8266WiFi.h>       // Library untuk menghubungkan ESP8266 ke WiFi
+#include <PubSubClient.h>      // Library untuk komunikasi menggunakan protokol MQTT
+#include <ArduinoJson.h>       // Library untuk membuat dan mengolah data JSON
+const char* ssid = "OPPO18";
+const char* password = "i2nb2ayq";
+const char* mqttServer = "broker.hivemq.com";
+const int mqttPort = 1883;
+// topik sensor
+const char* mqttTopic = "unsoed/tk245004/Percobaan3B/sensor";
+WiFiClient espClient;
+PubSubClient client(espClient);
+void hubungkanWiFi() {
+  WiFi.begin(ssid, password);
+  Serial.print("Menghubungkan ke WiFi");
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println();
+  Serial.println("WiFi berhasil terhubung!");
+}
+void hubungkanMQTT() {
+  while (!client.connected()) {
+    Serial.print("Menghubungkan ke broker MQTT...");
+    String clientId = "ESP8266Client-" + String(random(0xffff), HEX);
+    if (client.connect(clientId.c_str())) {
+      Serial.println("berhasil terhubung!");
+    } else {
+      Serial.print("gagal, rc=");
+      Serial.print(client.state());
+      Serial.println(" coba lagi dalam 2 detik");
+      delay(2000);
+    }
+  }
+}
+void setup() {
+  Serial.begin(115200);
+  hubungkanWiFi();
+  client.setServer(mqttServer, mqttPort);
+}
+void loop() {
+  if (!client.connected()) {
+    hubungkanMQTT();
+  }
+  client.loop();
+  JsonDocument doc;
+  doc["suhu"] = 28.5;
+  doc["kelembaban"] = 65.0;
+  char buffer[128];
+  serializeJson(doc, buffer);
+  client.publish(mqttTopic, buffer);
+  Serial.print("Data terkirim ke topic ");
+  Serial.print(mqttTopic);
+  Serial.print(": ");
+  Serial.println(buffer);
+  delay(5000);
+}
