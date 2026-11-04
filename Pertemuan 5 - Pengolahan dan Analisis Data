@@ -1,0 +1,261 @@
+//Kode 5A
+
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+#include <math.h>
+
+const char* ssid = "OPPO18";
+const char* password = "i2nb2ayq";
+
+const char* mqtt_server = "broker.hivemq.com";
+const int mqtt_port = 1883;
+const char* mqtt_topic = "unsoed/tk245004/broker5/data";
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+const int N = 5;
+float buffer[N];
+int indeks = 0;
+int jumlah = 0;
+
+float suhuMin = 1000.0;
+float suhuMax = -1000.0;
+
+const unsigned long interval = 2000;
+unsigned long waktuSebelumnya = 0;
+
+float bacaSuhuMock() {
+    static unsigned long jumlahBaca = 0;
+    jumlahBaca++;
+
+    float suhuDasar = 28.0 + 2.0 * sin(jumlahBaca * 0.08);
+    float noise = random(-5, 6) * 0.1;
+    float suhu = suhuDasar + noise;
+
+    if (jumlahBaca % 25 == 0) {
+        suhu += 8.0;
+    }
+
+    return suhu;
+}
+
+float hitungMovingAverage(float nilaiBaru) {
+    buffer[indeks] = nilaiBaru;
+    indeks = (indeks + 1) % N;
+
+    if (jumlah < N) {
+        jumlah++;
+    }
+
+    float total = 0.0;
+
+    for (int i = 0; i < jumlah; i++) {
+        total += buffer[i];
+    }
+
+    return total / jumlah;
+}
+
+void koneksiWiFi() {
+    WiFi.mode(WIFI_STA);
+    WiFi.begin(ssid, password);
+
+    Serial.print("Menghubungkan ke Wi-Fi");
+
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+    }
+
+    Serial.println();
+    Serial.println("Wi-Fi terhubung!");
+    Serial.print("IP: ");
+    Serial.println(WiFi.localIP());
+}
+
+void koneksiMQTT() {
+    while (!client.connected()) {
+        String clientId = "ESP8266-Unsoed-";
+        clientId += String(ESP.getChipId(), HEX);
+
+        Serial.print("Menghubungkan ke MQTT... ");
+
+        if (client.connect(clientId.c_str())) {
+            Serial.println("Berhasil!");
+        } else {
+            Serial.print("Gagal, kode: ");
+            Serial.println(client.state());
+            delay(2000);
+        }
+    }
+}
+
+void setup() {
+    Serial.begin(115200);
+    randomSeed(micros());
+
+    koneksiWiFi();
+
+    client.setServer(mqtt_server, mqtt_port);
+    client.setBufferSize(256);
+
+    Serial.println();
+    Serial.println("Percobaan 5A - ESP8266 + MQTT");
+    Serial.print("Topic: ");
+    Serial.println(mqtt_topic);
+    Serial.println("Mentah | Filter | Min | Max");
+}
+
+void loop() {
+    if (WiFi.status() != WL_CONNECTED) {
+        koneksiWiFi();
+    }
+
+    if (!client.connected()) {
+        koneksiMQTT();
+    }
+
+    client.loop();
+
+    unsigned long waktuSekarang = millis();
+
+    if (waktuSekarang - waktuSebelumnya >= interval) {
+        waktuSebelumnya = waktuSekarang;
+
+        float suhu = bacaSuhuMock();
+        float suhuFilter = hitungMovingAverage(suhu);
+
+        if (suhu < suhuMin) {
+            suhuMin = suhu;
+        }
+
+        if (suhu > suhuMax) {
+            suhuMax = suhu;
+        }
+
+        Serial.print("Mentah: ");
+        Serial.print(suhu, 2);
+
+        Serial.print(" | Filter: ");
+        Serial.print(suhuFilter, 2);
+
+        Serial.print(" | Min: ");
+        Serial.print(suhuMin, 2);
+
+        Serial.print(" | Max: ");
+        Serial.println(suhuMax, 2);
+
+        char payload[100];
+
+        snprintf(payload, sizeof(payload), "{\"suhu\":%.2f}", suhu);
+
+        bool berhasil = client.publish(mqtt_topic, payload);
+
+        if (berhasil) {
+            Serial.print("MQTT terkirim: ");
+            Serial.println(payload);
+        } else {
+            Serial.println("Gagal mengirim MQTT!");
+        }
+    }
+}
+
+//Kode 5B python
+
+import json
+import time
+import paho.mqtt.client as mqtt
+import pandas as pd
+import matplotlib.pyplot as plt
+
+BROKER = "broker.hivemq.com"
+PORT = 1883
+TOPIC = "unsoed/tk245004/broker5/data"
+JUMLAH_SAMPEL = 30
+
+data = []
+
+
+def on_connect(client, userdata, flags, reason_code, properties):
+    print("Terhubung ke broker, kode:", reason_code)
+    client.subscribe(TOPIC)
+
+
+def on_message(client, userdata, msg):
+    try:
+        payload = json.loads(msg.payload.decode())
+        suhu = float(payload["suhu"])
+    except (ValueError, KeyError):
+        print("Data tidak valid, diabaikan")
+        return
+
+    data.append({
+        "waktu": time.strftime("%Y-%m-%d %H:%M:%S"),
+        "suhu": suhu
+    })
+
+    print(f"[{len(data)}/{JUMLAH_SAMPEL}] suhu = {suhu}")
+
+    if len(data) >= JUMLAH_SAMPEL:
+        client.disconnect()
+
+
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+client.on_connect = on_connect
+client.on_message = on_message
+client.connect(BROKER, PORT)
+client.loop_forever()
+
+df = pd.DataFrame(data)
+df.to_csv("data_suhu.csv", index=False)
+print("Data tersimpan di data_suhu.csv")
+
+if df.empty:
+    print("Tidak ada data yang diterima.")
+    raise SystemExit
+
+rata2 = df["suhu"].mean()
+std = df["suhu"].std()
+
+if pd.isna(std) or std == 0:
+    df["zscore"] = 0.0
+else:
+    df["zscore"] = (df["suhu"] - rata2) / std
+
+df["anomali"] = df["zscore"].abs() > 2
+
+print(f"Rata-rata : {rata2:.2f}")
+print(f"Std deviasi: {std:.2f}")
+print(f"Minimum : {df['suhu'].min():.2f}")
+print(f"Maksimum : {df['suhu'].max():.2f}")
+print(f"Jumlah anomali: {df['anomali'].sum()}")
+
+plt.figure(figsize=(10, 4))
+plt.plot(df.index, df["suhu"], marker="o", label="Suhu")
+
+anom = df[df["anomali"]]
+
+plt.scatter(
+    anom.index,
+    anom["suhu"],
+    color="red",
+    s=100,
+    label="Anomali",
+    zorder=3
+)
+
+plt.axhline(
+    rata2,
+    color="gray",
+    linestyle="--",
+    label="Rata-rata"
+)
+
+plt.xlabel("Urutan data")
+plt.ylabel("Suhu (°C)")
+plt.title("Data Suhu dan Deteksi Anomali")
+plt.legend()
+plt.tight_layout()
+plt.savefig("grafik_suhu.png")
+plt.show()
